@@ -5,20 +5,16 @@
 <title>Babai Convertor</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- ===================== STYLE ===================== -->
 <style>
-* {
-  box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif;
-}
+* { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
 
 body {
   margin: 0;
   min-height: 100vh;
   background: linear-gradient(135deg, #1d2671, #c33764);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   color: #fff;
 }
 
@@ -31,10 +27,7 @@ body {
   box-shadow: 0 0 25px rgba(0,0,0,0.6);
 }
 
-h1 {
-  text-align: center;
-  margin-bottom: 20px;
-}
+h1 { text-align: center; margin-bottom: 20px; }
 
 .box {
   background: #1c1c1c;
@@ -58,7 +51,7 @@ input[type="file"] {
   color: #ccc;
 }
 
-/* ===== FIXED DROPDOWN ===== */
+/* FIXED DROPDOWN */
 select {
   width: 100%;
   padding: 12px;
@@ -98,17 +91,9 @@ button {
   color: #000;
 }
 
-button:hover {
-  opacity: 0.9;
-}
+.hidden { display: none; }
 
-.hidden {
-  display: none;
-}
-
-.success {
-  text-align: center;
-}
+.success { text-align: center; }
 
 .download {
   display: block;
@@ -122,10 +107,9 @@ button:hover {
 }
 </style>
 
-<!-- ===================== LIBRARIES ===================== -->
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
-
 </head>
+
 <body>
 
 <div class="app">
@@ -137,7 +121,7 @@ button:hover {
     <div id="fileInfo"></div>
 
     <select id="formatSelect">
-      <option disabled selected>Select output format</option>
+      <option value="" disabled>Select output format</option>
     </select>
 
     <button onclick="convertFile()">Convert</button>
@@ -149,7 +133,6 @@ button:hover {
   </div>
 </div>
 
-<!-- ===================== SCRIPT ===================== -->
 <script>
 const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({ log: false });
@@ -186,15 +169,16 @@ document.getElementById("fileInput").addEventListener("change", e => {
     `<b>File:</b> ${selectedFile.name}<br><b>Detected Type:</b> ${detectedType ?? "Unsupported"}`;
 
   const select = document.getElementById("formatSelect");
-  select.innerHTML = `<option disabled selected>Select output format</option>`;
+  select.innerHTML = `<option value="" disabled>Select output format</option>`;
 
   if (!detectedType) return;
 
-  formats[detectedType].forEach(f => {
-    const option = document.createElement("option");
-    option.value = f;
-    option.textContent = f.toUpperCase();
-    select.appendChild(option);
+  formats[detectedType].forEach((f, index) => {
+    const opt = document.createElement("option");
+    opt.value = f;
+    opt.textContent = f.toUpperCase();
+    if (index === 0) opt.selected = true;   // ✅ AUTO SELECT FIRST FORMAT
+    select.appendChild(opt);
   });
 });
 
@@ -204,19 +188,18 @@ async function convertFile() {
     return;
   }
 
-  const targetFormat = document.getElementById("formatSelect").value;
-  if (!targetFormat) {
+  const target = document.getElementById("formatSelect").value;
+  if (!target) {
     alert("Please select output format");
     return;
   }
 
   if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
-  const inputName = selectedFile.name;
-  const outputName = "converted." + targetFormat;
+  const outputName = "converted." + target;
 
-  ffmpeg.FS("writeFile", inputName, await fetchFile(selectedFile));
-  await ffmpeg.run("-i", inputName, outputName);
+  ffmpeg.FS("writeFile", selectedFile.name, await fetchFile(selectedFile));
+  await ffmpeg.run("-i", selectedFile.name, outputName);
 
   const data = ffmpeg.FS("readFile", outputName);
   const blob = new Blob([data.buffer]);

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Babai Convertor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ===================== STYLE ===================== -->
+<style>
+* {
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1d2671, #c33764);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.app {
+  width: 95%;
+  max-width: 600px;
+  background: #111;
+  padding: 22px;
+  border-radius: 14px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.6);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.box {
+  background: #1c1c1c;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 10px;
+  background: #000;
+  color: #fff;
+  border: 2px dashed #ff9800;
+  border-radius: 8px;
+}
+
+#fileInfo {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+/* ===== FIXED DROPDOWN ===== */
+select {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 2px solid #ff9800;
+  font-size: 15px;
+  background-color: #000;
+  color: #fff;
+  cursor: pointer;
+
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background-image: url("data:image/svg+xml;utf8,<svg fill='orange' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+}
+
+select option {
+  background: #000;
+  color: #fff;
+}
+
+button {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #ff9800;
+  color: #000;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.hidden {
+  display: none;
+}
+
+.success {
+  text-align: center;
+}
+
+.download {
+  display: block;
+  margin-top: 15px;
+  padding: 12px;
+  background: #4caf50;
+  color: #000;
+  font-weight: bold;
+  border-radius: 8px;
+  text-decoration: none;
+}
+</style>
+
+<!-- ===================== LIBRARIES ===================== -->
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
+
+</head>
+<body>
+
+<div class="app">
+  <h1>Babai Convertor</h1>
+
+  <div class="box">
+    <input type="file" id="fileInput">
+
+    <div id="fileInfo"></div>
+
+    <select id="formatSelect">
+      <option disabled selected>Select output format</option>
+    </select>
+
+    <button onclick="convertFile()">Convert</button>
+  </div>
+
+  <div class="box success hidden" id="successBox">
+    <h3>✅ Conversion Successful</h3>
+    <a id="downloadLink" class="download" download>Download Converted File</a>
+  </div>
+</div>
+
+<!-- ===================== SCRIPT ===================== -->
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: false });
+
+const formats = {
+  video: ["mp4","mov","avi","wmv","webm"],
+  audio: ["mp3","wav","aac"],
+  image: ["jpg","jpeg","png"],
+  text: ["txt"],
+  excel: ["xlsx"],
+  pdf: ["pdf"]
+};
+
+let selectedFile = null;
+let detectedType = null;
+
+document.getElementById("fileInput").addEventListener("change", e => {
+  selectedFile = e.target.files[0];
+  document.getElementById("successBox").classList.add("hidden");
+
+  if (!selectedFile) return;
+
+  const ext = selectedFile.name.split(".").pop().toLowerCase();
+
+  detectedType =
+    formats.video.includes(ext) ? "video" :
+    formats.audio.includes(ext) ? "audio" :
+    formats.image.includes(ext) ? "image" :
+    formats.text.includes(ext) ? "text" :
+    formats.excel.includes(ext) ? "excel" :
+    formats.pdf.includes(ext) ? "pdf" : null;
+
+  document.getElementById("fileInfo").innerHTML =
+    `<b>File:</b> ${selectedFile.name}<br><b>Detected Type:</b> ${detectedType ?? "Unsupported"}`;
+
+  const select = document.getElementById("formatSelect");
+  select.innerHTML = `<option disabled selected>Select output format</option>`;
+
+  if (!detectedType) return;
+
+  formats[detectedType].forEach(f => {
+    const option = document.createElement("option");
+    option.value = f;
+    option.textContent = f.toUpperCase();
+    select.appendChild(option);
+  });
+});
+
+async function convertFile() {
+  if (!selectedFile || !detectedType) {
+    alert("Please select a supported file");
+    return;
+  }
+
+  const targetFormat = document.getElementById("formatSelect").value;
+  if (!targetFormat) {
+    alert("Please select output format");
+    return;
+  }
+
+  if (!ffmpeg.isLoaded()) await ffmpeg.load();
+
+  const inputName = selectedFile.name;
+  const outputName = "converted." + targetFormat;
+
+  ffmpeg.FS("writeFile", inputName, await fetchFile(selectedFile));
+  await ffmpeg.run("-i", inputName, outputName);
+
+  const data = ffmpeg.FS("readFile", outputName);
+  const blob = new Blob([data.buffer]);
+  const url = URL.createObjectURL(blob);
+
+  const link = document.getElementById("downloadLink");
+  link.href = url;
+  link.download = outputName;
+
+  document.getElementById("successBox").classList.remove("hidden");
+}
+</script>
+
+</body>
+</html>
